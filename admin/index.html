@@ -5844,6 +5844,9 @@ www.visa.cn#优选域名
 API示例：
 https://raw.githubusercontent.com/cmliu/WorkerVless2sub/main/addressesapi.txt
 
+优选订阅生成器示例：
+sub://sub.cmliussss.net#CM优选订阅
+
 其他节点示例：
 vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tls&type=ws&host=edt-pages.github.io&path=%2F#edgetunnel"
                                     onchange="markModified('sub')"></textarea>
@@ -6541,8 +6544,8 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
 
             <!-- 请求方案选择 -->
             <div class="form-group subapi-form-group">
-                <label>请求方案</label>
-                <select id="cloudflareAuthMethod" title="请求方案" onchange="updateCloudflareAuthMethod()">
+                <label>请选择统计方案</label>
+                <select id="cloudflareAuthMethod" title="请求统计方案" onchange="updateCloudflareAuthMethod()">
                     <option id="usageapiOption" value="usageapi">UsageAPI（支持多账号统计）</option>
                     <option value="accountid">Account ID + API Token</option>
                     <option value="email">Email + Global API Key</option>
