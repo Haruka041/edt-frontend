@@ -6604,6 +6604,22 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
                         </select>
                     </div>
 
+                    <div class="form-group" id="ssMethodGroup" style="display: none;">
+                        <label for="ssMethod">加密方式</label>
+                        <select id="ssMethod" title="加密方式" onchange="markModified('config')">
+                            <option value="aes-128-gcm">aes-128-gcm</option>
+                            <option value="aes-256-gcm">aes-256-gcm</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="ssTLSGroup" style="display: none;">
+                        <label for="ssTLS">TLS</label>
+                        <select id="ssTLS" title="TLS" onchange="markModified('config')">
+                            <option value="true">启用</option>
+                            <option value="false">关闭</option>
+                        </select>
+                    </div>
+
                     <div class="form-group" id="transportGroup" style="display: none;">
                         <label>传输协议</label>
                         <select id="transport" title="传输协议" onchange="handleTransportChange()">
@@ -8794,8 +8810,10 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
 
             document.getElementById('nodeUUID').value = currentConfig.UUID || '';
             document.getElementById('nodePATH').value = currentConfig.PATH || '';
+            syncSSProtocolSettingsFromConfig();
             document.getElementById('protocol').value = currentConfig.协议类型 || 'vless';
             syncTransportSettingsFromConfig();
+            updateProtocol();
 
             // 检查跳过证书验证字段是否存在
             const skipVerifyGroup = document.getElementById('skipVerifyGroup');
@@ -9244,17 +9262,67 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
             updateTransportGrpcTooltipVisibility(false);
         }
 
-        function updateProtocol() {
-            const protocol = document.getElementById('protocol').value;
-            /*
-            const transport = document.getElementById('transport');
-            if (protocol === 'trojan') {
-                transport.value = 'ws';
-                transport.disabled = true;
-            } else {
-                transport.disabled = false;
+        function syncSSProtocolSettingsFromConfig() {
+            const protocolSelect = document.getElementById('protocol');
+            const ssMethodSelect = document.getElementById('ssMethod');
+            const ssTLSSelect = document.getElementById('ssTLS');
+            if (!protocolSelect || !ssMethodSelect || !ssTLSSelect) return;
+
+            const hasSSConfig = !!(currentConfig && currentConfig.SS && typeof currentConfig.SS === 'object');
+            const ssOption = protocolSelect.querySelector('option[value="ss"]');
+            const ssMethodKey = '\u52a0\u5bc6\u65b9\u5f0f';
+
+            if (hasSSConfig) {
+                if (!ssOption) {
+                    const option = document.createElement('option');
+                    option.value = 'ss';
+                    option.textContent = 'Shadowsocks';
+                    protocolSelect.appendChild(option);
+                }
+
+                const savedMethod = currentConfig.SS[ssMethodKey];
+                ssMethodSelect.value = savedMethod || 'aes-128-gcm';
+                if (!ssMethodSelect.value) {
+                    ssMethodSelect.value = 'aes-128-gcm';
+                }
+
+                ssTLSSelect.value = currentConfig.SS.TLS ? 'true' : 'false';
+                return;
             }
-            */
+
+            if (ssOption) {
+                ssOption.remove();
+            }
+            if (protocolSelect.value === 'ss') {
+                protocolSelect.value = 'vless';
+            }
+
+            ssMethodSelect.value = 'aes-128-gcm';
+            ssTLSSelect.value = 'false';
+        }
+
+        function updateProtocol() {
+            const protocolSelect = document.getElementById('protocol');
+            const ssMethodGroup = document.getElementById('ssMethodGroup');
+            const ssTLSGroup = document.getElementById('ssTLSGroup');
+            if (!protocolSelect || !ssMethodGroup || !ssTLSGroup) return;
+
+            const hasSSConfig = !!(currentConfig && currentConfig.SS && typeof currentConfig.SS === 'object');
+            const showSSFields = hasSSConfig && protocolSelect.value === 'ss';
+            ssMethodGroup.style.display = showSSFields ? '' : 'none';
+            ssTLSGroup.style.display = showSSFields ? '' : 'none';
+
+            const protocol = protocolSelect.value;
+            const transport = document.getElementById('transport');
+            if (transport) {
+                const shouldLockTransport = protocol === 'ss';
+                if (shouldLockTransport) {
+                    transport.value = 'ws';
+                }
+                transport.disabled = shouldLockTransport;
+                updateGrpcModeVisibility();
+                updateTransportGrpcTooltipVisibility(false);
+            }
         }
 
         // 处理浏览器指纹变化，联动ECH选项
@@ -10108,6 +10176,13 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
         async function saveConfig() {
             currentConfig.优选订阅生成.SUBNAME = document.getElementById('subName').value;
             currentConfig.协议类型 = document.getElementById('protocol').value;
+            const ssMethodSelect = document.getElementById('ssMethod');
+            const ssTLSSelect = document.getElementById('ssTLS');
+            if (currentConfig.SS && typeof currentConfig.SS === 'object' && ssMethodSelect && ssTLSSelect) {
+                const ssMethodKey = '\u52a0\u5bc6\u65b9\u5f0f';
+                currentConfig.SS[ssMethodKey] = ssMethodSelect.value || 'aes-128-gcm';
+                currentConfig.SS.TLS = ssTLSSelect.value === 'true';
+            }
             if (currentConfig['gRPC模式'] !== undefined) {
                 currentConfig['传输协议'] = document.getElementById('transport').value;
                 currentConfig['gRPC模式'] = document.getElementById('grpcMode').value || 'gun';
@@ -10390,6 +10465,7 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
                 document.getElementById('nodeHost').value = currentConfig.HOST || '';
                 document.getElementById('nodeUUID').value = currentConfig.UUID || '';
                 document.getElementById('nodePATH').value = currentConfig.PATH || '';
+                syncSSProtocolSettingsFromConfig();
                 document.getElementById('protocol').value = currentConfig.协议类型 || 'vless';
                 syncTransportSettingsFromConfig();
                 document.getElementById('skipVerify').checked = currentConfig.跳过证书验证 || false;
@@ -13390,6 +13466,7 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
                     document.getElementById('nodeHost').value = currentConfig.HOST || '';
                     document.getElementById('nodeUUID').value = currentConfig.UUID || '';
                     document.getElementById('nodePATH').value = currentConfig.PATH || '';
+                    syncSSProtocolSettingsFromConfig();
                     document.getElementById('protocol').value = currentConfig.协议类型 || 'vless';
                     syncTransportSettingsFromConfig();
                     document.getElementById('skipVerify').checked = currentConfig.跳过证书验证 || false;

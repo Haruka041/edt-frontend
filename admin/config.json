@@ -22,6 +22,10 @@
     "DNS": "https://doh.cmliussss.net/CMLiussss",
     "SNI": null
   },
+  "SS": {
+    "加密方式": "aes-128-gcm",
+    "TLS": false
+  },
   "Fingerprint": "chrome",
   "优选订阅生成": {
     "local": true,
