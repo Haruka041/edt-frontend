@@ -15361,14 +15361,72 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
             }).join(' ');
         }
 
-        function renderNetworkFieldDisplay(fieldElement) {
+        function stopNetworkFieldAnimation(fieldElement) {
+            if (!fieldElement) return;
+            if (fieldElement._privacyAnimFrame) {
+                cancelAnimationFrame(fieldElement._privacyAnimFrame);
+                fieldElement._privacyAnimFrame = null;
+            }
+        }
+
+        function animateNetworkFieldDisplay(fieldElement, targetText, durationMs = 160) {//逐字符替换速度
+            if (!fieldElement) return;
+            stopNetworkFieldAnimation(fieldElement);
+
+            const fromText = String(fieldElement.textContent || '');
+            const toText = String(targetText || '');
+            if (fromText === toText) {
+                fieldElement.textContent = toText;
+                return;
+            }
+
+            const maxLen = Math.max(fromText.length, toText.length);
+            const fromChars = fromText.padEnd(maxLen, ' ').split('');
+            const toChars = toText.padEnd(maxLen, ' ').split('');
+            const diffIndexes = [];
+            for (let i = 0; i < maxLen; i++) {
+                if (fromChars[i] !== toChars[i]) diffIndexes.push(i);
+            }
+
+            if (!diffIndexes.length) {
+                fieldElement.textContent = toText;
+                return;
+            }
+
+            const startTime = performance.now();
+            const frame = now => {
+                const progress = Math.min((now - startTime) / durationMs, 1);
+                const changedCount = Math.floor(progress * diffIndexes.length);
+
+                const currentChars = fromChars.slice();
+                for (let i = 0; i < changedCount; i++) {
+                    const idx = diffIndexes[i];
+                    currentChars[idx] = toChars[idx];
+                }
+
+                fieldElement.textContent = currentChars.join('').trimEnd();
+
+                if (progress < 1) {
+                    fieldElement._privacyAnimFrame = requestAnimationFrame(frame);
+                } else {
+                    fieldElement._privacyAnimFrame = null;
+                    fieldElement.textContent = toText;
+                }
+            };
+
+            fieldElement._privacyAnimFrame = requestAnimationFrame(frame);
+        }
+
+        function renderNetworkFieldDisplay(fieldElement, options = {}) {
             if (!fieldElement) return;
             if (fieldElement.dataset.displayState !== 'ready') return;
+            const { animate = false } = options;
 
             const rawValue = String(fieldElement.dataset.rawValue || '').trim();
             const maskType = fieldElement.dataset.maskType || 'location';
 
             if (!rawValue) {
+                stopNetworkFieldAnimation(fieldElement);
                 fieldElement.textContent = '';
                 return;
             }
@@ -15380,7 +15438,12 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
                     : maskNetworkLocationValue(rawValue);
             }
 
-            fieldElement.textContent = displayValue;
+            if (animate) {
+                animateNetworkFieldDisplay(fieldElement, displayValue);
+            } else {
+                stopNetworkFieldAnimation(fieldElement);
+                fieldElement.textContent = displayValue;
+            }
         }
 
         function setNetworkFieldValue(fieldId, rawValue, maskType) {
@@ -15397,6 +15460,7 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
             const fieldElement = document.getElementById(fieldId);
             if (!fieldElement) return;
 
+            stopNetworkFieldAnimation(fieldElement);
             fieldElement.dataset.rawValue = '';
             fieldElement.dataset.displayState = 'error';
             fieldElement.innerHTML = `<span class="error">${errorText}</span>`;
@@ -15406,15 +15470,16 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
             const fieldElement = document.getElementById(fieldId);
             if (!fieldElement) return;
 
+            stopNetworkFieldAnimation(fieldElement);
             fieldElement.dataset.rawValue = '';
             fieldElement.dataset.displayState = 'empty';
             fieldElement.textContent = '';
         }
 
-        function refreshAllNetworkFieldDisplays() {
+        function refreshAllNetworkFieldDisplays(animate = false) {
             NETWORK_FIELD_CONFIGS.forEach(({ id }) => {
                 const fieldElement = document.getElementById(id);
-                renderNetworkFieldDisplay(fieldElement);
+                renderNetworkFieldDisplay(fieldElement, { animate });
             });
 
             applyNetworkCardFlag('ipip-country');
@@ -15426,7 +15491,7 @@ vless://7b102311-43fd-4e8f-977e-8090623c101d@edt-pages.github.io:443?security=tl
         function toggleNetworkPrivacy(event) {
             if (event) event.stopPropagation();
             networkPrivacyVisible = !networkPrivacyVisible;
-            refreshAllNetworkFieldDisplays();
+            refreshAllNetworkFieldDisplays(true);
         }
 
         function bindNetworkCardPrivacyToggle() {
